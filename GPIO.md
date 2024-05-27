@@ -18,7 +18,7 @@ GPIO(General Purpose Input/Output)是一種泛用型的輸入輸出裝置，每�
 上圖為一標準 I/O 端口，看到下方的 Output driver 虛線框框，裡面有三種狀態，分別是 Push-pull, Open-drain or disable。VDD 與 VSS 為中間串接了 P/N MOS。兩個 MOS 會組成四種狀態如下表，O 代表輸出
 
 | O | 高電位 | 低電位 | 高阻抗 | 短路 |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | P | 打開 | 關閉 | 關閉 | 打開 |
 | N | 關閉 | 打開 | 關閉 | 打開 |
 
