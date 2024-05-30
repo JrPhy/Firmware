@@ -12,7 +12,7 @@
 
 ## 2. 傳輸協定
 SPI 主要是靠時鐘訊號來做讀取，也可以暫停再開始。要發送資料時，會先將 CS 的電位改變，要拉高還是拉低完全由晶片手冊決定，在此以拉低為例。此時時中線會一直發時鐘訊號，再時鐘線翻轉時，也就是上升沿或下降沿時的讀取，在此以上升沿為例。資料線也會一直發送訊號出去，所以讀取訊號時的電路如下圖
-![SPI 讀取電路時的電位](https://github.com/JrPhy/Firmware/blob/main/pic/SPI.jpg) https://en.wikipedia.org/wiki/Serial_Peripheral_Interface\
+![SPI 讀取電路時的電位](https://github.com/JrPhy/Firmware/blob/main/pic/SPI.jpg) https://en.wikipedia.org/wiki/Serial_Peripheral_Interface \
 總共會有四種模式
 
 | MODE | CS | CLK | MOSI | Slave 1 |
