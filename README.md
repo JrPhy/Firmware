@@ -6,4 +6,4 @@ CANBUS 沒有主從關係，為廣播模式。
 
 複雜度：SPI > CANBUS > I<sup>2</sup>C\
 傳輸速率：SPI > CANBUS > I<sup>2</sup>C\
-傳輸距離：CANBUS > SPI > I<sup>2</sup>C\
+傳輸距離：CANBUS > SPI > I<sup>2</sup>C
