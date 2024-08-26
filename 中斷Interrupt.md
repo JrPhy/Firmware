@@ -26,6 +26,9 @@ STM32 內部有個邊沿電路檢測器，當電訊號從 GPIO 進入後就會�
 中斷函數必須是沒有引數與回傳值，且內部也盡量不要做其他事情，就只有跳到其他地址而已。
 ```C
 void EXTI3_IRQHandler(void) {
-  //...
+    if(EXTI_GetITStatus != /*某訊號*/) {
+        // 中斷邏輯
+        EXTI_ClearITPendingBit(/*某條線*/)
+    }
 }
 ```
