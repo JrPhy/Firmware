@@ -23,7 +23,7 @@ STM32 內部有個邊沿電路檢測器，當電訊號從 GPIO 進入後就會�
 [來源](https://letanphuc.net/2015/03/stm32f0-tutorial-3-external-interrupts/)
 
 ## 5. 中斷函數寫法
-中斷函數必須是沒有引數與回傳值，且內部也盡量不要做其他事情，就只有跳到其他地址而已。
+中斷函數必須是沒有引數與回傳值，且內部也盡量不要做其他事情，程式碼也盡量短，就只有跳到其他地址而已。
 ```C
 void EXTI3_IRQHandler(void) {
     if(EXTI_GetITStatus != /*某訊號*/) {
