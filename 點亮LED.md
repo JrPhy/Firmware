@@ -2,7 +2,7 @@
 
 ## 1. STM32
 需要去設置 GPIO port 的狀態以及頻率 https://www.cnblogs.com/zxr-blog/p/17957466#_lab2_0_0
-```
+```C
 #include "led.h"
 void main(void) {
     GPIO_InitTypeDef GPIO_InitStruct;//结构图定义
@@ -19,7 +19,7 @@ void main(void) {
 
 ## 2. 8051
 8051 的每個 port 都是預設高電位，所以只要將連接的 port 拉低電位即可點亮
-```
+```C
 #include <reg51.h>
 void main(void) {
     while (1) {
