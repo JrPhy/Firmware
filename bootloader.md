@@ -2,4 +2,13 @@
 當按下硬體的電源鍵後會並不會進入系統，而是會先初始化一些設備，開機載入程式 (Bootloader) 通常放在非揮發性記憶體的固定起始位址，隨著不同的 MCU 或 SOC 而有不同，例如 ARM 為0x000000004， MIPS為0xBFC00000，而 ARM Cortex M3 則根據 0x00000004，可以在各廠家的使用手冊上找到，這樣 CPU 在上電或重置時就能直接執行 Bootloader 的初始化程式。當然起始位置會。Bootloader 會去初始化一些外設設備，如時鐘系統 (Clock)、GPIO、UART、SPI、I2C 等必要接口，甚至還有 WIFI 跟 BLE，就可以拿來做更新。也會去建立記憶體映射表，也就是虛擬位置到實際地址的表，再去跳轉到主程式的部分。而在 PC 上則是會先進到 BIOS/UEFI，裡面會有許多 Bootloader 裝在 MBR 上，且會有預設的 OS，也可安裝多個 OS 讓使用者選擇。所以 Bootloader 其實是一個非常小的程式，放在開機後記憶體的起始位置，初始化一些設備並建立記憶體映射表後再跳轉進到主程式。
 
 ## 二、Bootloader
-在 MCU 或 SOC 開機後會直接進到 bootloader，現在較常見的有 U-boot 與 Redboot，主要會有兩個階段．第一階段為初始化 CPU / stack / SRAM / clock 等基本硬體，由組語寫成，通常越小越好．也幾乎僅可用 SRAM 如 flash/NVRAM 等，有些也在 ROM 內．第二階段則是由組語跳轉到 main() 函數，之後則都用 C 寫成．是用來引導啟動 kernel，最终目的就是從 flash 中讀取 kernel 放到 RAM 中並啟動．在 [U-Boot](https://github.com/u-boot/u-boot) 裡，```u-boot.lds(arch/arm/cpu/u-boot.lds)``` 是一個鏈接腳本 (Linker Script)，它的作用是告訴編譯器/鏈接器程式的各個段 (section) 要放到記憶體的哪個位置，不同架構的 MCU/SOC 都有自己的 u-boot.lds。有關 u-Boot 詳細步驟解說可看[這篇文章](https://zhuanlan.zhihu.com/p/659724837)．
+在 MCU 或 SOC 開機後會直接進到 bootloader，現在較常見的有 U-boot 與 Redboot，主要會有兩個階段．第一階段為初始化 CPU / stack / SRAM / clock 等基本硬體，由組語寫成，通常越小越好．也幾乎僅可用 SRAM 如 flash/NVRAM 等，有些也在 ROM 內．第二階段則是由組語跳轉到 main() 函數，之後則都用 C 寫成．是用來引導啟動 kernel，最终目的就是從 flash 中讀取 kernel 放到 RAM 中並啟動．在 [U-Boot](https://github.com/u-boot/u-boot) 裡，```u-boot.lds(u-boot/arch/arm/cpu/u-boot.lds)``` 是一個鏈接腳本 (Linker Script)，它的作用是告訴編譯器/鏈接器程式的各個段 (section) 要放到記憶體的哪個位置，不同架構的 MCU/SOC 都有自己的 u-boot.lds。有關 u-Boot 詳細步驟解說可看[這篇文章](https://zhuanlan.zhihu.com/p/659724837)．
+
+#### 1. 進入點
+u-boot.lds 中的 ENTRY(_start) 就是 U-boot 的進入點，其中 _start 放在 ```u-boot/arch/arm/lib/vectors.S``` 或是每個 ```cpu/start.S``` 中，裡面可看到一開始先做了 reset，之後就到 ```.globl _start```，裡面的 ```.section ".vectors", "ax"```．\
+.section: 將接下來的程式碼或資料放入後面得變數中\
+".vectors": 變數名稱\
+"ax": 可分配 allocatable 與可執行 executable\
+所以意思就是將接下來的程式碼放入 .vectors 中，並標注可分配與可執行．後面就是放要放進去的程式碼與變數了．
+
+#### 2. 
