@@ -2,12 +2,41 @@
 
 ## 一、OTA 流程
 OTA 是透過網路/藍芽/ZigBee/NFC 等通訊協定，把檔案傳到機台上然後再檢查檔案簽章與完整度。可以每隔一段固定時間檢查一次。以現在較新的做法是會去分成 A/B 兩區，假設現在在跑 A，則 A 為啟動區 (active slot)，那就把新的韌體寫到 B，並標記 B 為待驗區 (pending slot)，完成後就可以去重啟 bootloader 然後檢查，如果 B 可以正常使用那就把 B 標記為運行區並把 A 標成備份或非啟動區 (backup slot)，否則就回到 A。下次就是寫入 A。在一些手機等記憶體較大的裝置通常是下載一個全新的 FW，而在一些 MCU 這種記憶體較少的可能會只下載更新包，不過因為這種程式設計較為複雜，所以現在非常少用，不然就是用 IAP，也就是回購買店家幫你接線升級。
-
+```
+┌─────────────────┬─────────────────┬─────────────────┐
+│   Bootloader    │     APP1        │     APP2        │
+│     Flash       │     Flash       │     Flash       │
+└─────────────────┴─────────────────┴─────────────────┘
+```
+```
+           +---------------------+
+           | 運行於 APP_A        |
+           +---------------------+
+                     |
+                     v
+           +---------------------+
+           | 下載新韌體至 APP_B  |
+           +---------------------+
+                     |
+                     v
+           +---------------------+
+           | 校驗 APP_B 韌體     |
+           +---------------------+
+                     |
+           +---------+-----------+
+           |                     |
+          成功                  失敗
+           |                     |
+           v                     v
++---------------------+    +---------------------+
+| 切換執行至 APP_B     |    | 保持 APP_A 運行      |
++---------------------+    +---------------------+
+```
 ## 二、IAP 流程
 雖然 IAP 的優勢就是不用分區，但因為現在都是混用設計居多，所以 IAP 也會同 OTA 一樣做分區設計，否則要更新就都需要插線，例如 USB 或是其他 UART/SPI 等，後者就是使用 SD Card 之類的，其餘的步驟都跟 OTA 一樣。
 
 ## 三、更新流程
-而在開機過程中，BOOTLOADER 預設是進入系統的，所以做更新時必須要把 FLAG 設置成更新，在 u-boot 中可以在 ```u-boot/common/main.c``` 加入 flag 去判斷
+而在開機過程中，BOOTLOADER 預設是進入系統的，所以做更新時必須要把 FLAG 設置成更新，在 u-boot 中可以在 ```u-boot/common/main.c``` 加入 flag 去判斷，這是一般釋出給客戶的做法，因為編譯後客戶就無法去改動。
 ```C++
 void main_loop(void) {
     ...
@@ -23,19 +52,78 @@ void main_loop(void) {
     // check for update
 }
 ```
-run_command 裡的指令就是 UBOOT SHELL 的指令，也可以去改 setenv + saveenv，這是一般開發的做法，如果是大規模 OTA 則會去直接改動 U‑Boot 指令，在```configs/<board>_defconfig```中加上
+run_command 裡的指令就是 UBOOT SHELL 的指令，也可以去改 setenv + saveenv，這是一般開發的做法。在```configs/<board>_defconfig```中加上
 ```
 CONFIG_BOOTCOMMAND="tftpboot 0x80000000 firmware.img; \
+# 定義 U‑Boot 開機後要自動執行的指令序列。這會成為環境變數 bootcmd 的預設值。
+# 為從 TFTP server 下載檔案 firmware.img，放到 RAM 位址 0x80000000。
                     mmc dev 0; \
+# 選擇 eMMC 裝置編號 0，準備操作。
                     mmc erase 0x1000 0x8000; \
+# 擦除 eMMC 上從位址 0x1000 開始、長度 0x8000 的區塊。這裡代表要清掉舊韌體所在的分區。
                     mmc write 0x80000000 0x1000 0x8000; \
+# 把剛剛下載到 RAM 的映像檔，寫入到 eMMC 的分區（起始位址 0x1000，大小 0x8000）。
                     reset"
+# 完成更新後，重啟系統，讓新韌體生效。
 ```
+#### 1. 設定分區
+這邊採用直接改 C 語言的作法
+```C
+#define PART_A_OFFSET 0x100000
+#define PART_B_OFFSET 0x500000
+#define PART_SIZE     0x400000
+// 設定分區起始位置與大小
+static int get_current_slot(void) {
+    char *slot = env_get("boot_slot");
+    if (slot && strcmp(slot, "A") == 0) return 0;
+    return 1;
+}
+
+static void set_boot_slot(int slot) {
+    env_set("boot_slot", slot == 0 ? "A" : "B");
+    env_save();
+}
 ```
-CONFIG_BOOTCOMMAND="..." → 定義 U‑Boot 開機後要自動執行的指令序列。這會成為環境變數 bootcmd 的預設值。
-tftpboot 0x80000000 firmware.img; → 從 TFTP server 下載檔案 firmware.img，放到 RAM 位址 0x80000000。
-mmc dev 0; → 選擇 eMMC 裝置編號 0，準備操作。
-mmc erase 0x1000 0x8000; → 擦除 eMMC 上從位址 0x1000 開始、長度 0x8000 的區塊。這裡代表要清掉舊韌體所在的分區。
-mmc write 0x80000000 0x1000 0x8000; → 把剛剛下載到 RAM 的映像檔，寫入到 eMMC 的分區（起始位址 0x1000，大小 0x8000）。
-reset → 完成更新後，重啟系統，讓新韌體生效。
+這兩個函數用來取得跟設定分區
+```C
+int do_ota_update(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
+    ulong addr, size, offset;
+    int next_slot;
+
+    if (argc != 3) {
+        printf("用法: ota_update <mem_addr> <size>\n");
+        return CMD_RET_USAGE;
+    }
+
+    addr = simple_strtoul(argv[1], NULL, 16);
+    size = simple_strtoul(argv[2], NULL, 16);
+
+    next_slot = !get_current_slot();
+    offset = next_slot ? PART_B_OFFSET : PART_A_OFFSET;
+
+    printf("寫入映像到 slot %c (offset 0x%lx, size 0x%lx)\n", next_slot ? 'B' : 'A', offset, size);
+
+    if (flash_erase(offset, PART_SIZE)) {
+        printf("擦除分區失敗\n");
+        return CMD_RET_FAILURE;
+    }
+    if (flash_write(addr, offset, size)) {
+        printf("寫入映像失敗\n");
+        return CMD_RET_FAILURE;
+    }
+    if (!verify_image(offset, size)) {
+        printf("校驗失敗\n");
+        return CMD_RET_FAILURE;
+    }
+    set_boot_slot(next_slot);
+    printf("OTA 更新完成，請重啟系統\n");
+    return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+    ota_update, 3, 0, do_ota_update,
+    "OTA 雙分區升級: ota_update <mem_addr> <size>",
+    "mem_addr: 映像在 DRAM 的地址\n"
+    "size: 映像大小"
+);
 ```
